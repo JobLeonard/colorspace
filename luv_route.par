@@ -1,0 +1,3 @@
+PROBLEM_FILE = ./luv_route.tsp
+RUNS = 4
+TOUR_FILE =  ./luv_route.out
