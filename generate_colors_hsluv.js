@@ -527,50 +527,60 @@ var colors = (function () {
 	// Practically: unfeasible. Unless I can somehow implement
 	// TSP in JavaScript.
 
-	// First approach tried is Tim Holy's approximation:
+	// First approach is inspired by Tim Holy's approximation:
 	// start with one color, find most distant color from it,
 	// find next most distant color from those two, etc.
 	// Color distance will quickly decrease as pallette does
 	// let there be N total colors (in our case, N = 198)
 
-	let,
-		colors = [hexColors[seedColorIndex]],
+	let timh_colors = [hexColors[seedColorIndex]],
 		colorIndices = [seedColorIndex],
-		nColors = [colors],
 		allIndices = hexColors.map((_, index) => {
-		// skip the seedColorIndex, note that
-		// we'll end up with an extra index
-		return index + (index < seedColorIndex ? 0 : 1);
-	});
+			// skip the seedColorIndex, note that
+			// we'll end up with an extra index
+			return index + (index < seedColorIndex ? 0 : 1);
+		});
 	// remove extra index
 	allIndices.pop();
 
 
 	for (let i = 1; i < totalColors; i++) {
-		colors = colors.slice(0);
-		colorIndices = colorIndices.slice(0);
 		let maxMinDist = 0;
-		let maxMindDistIdx = -1;
+		let maxMinDistIdx = -1;
 		// for each new color, go through the distance
 		// matrix and find the color with the biggest
 		// minimum distance from the current color
-		for (let j = 0; j < i; j++) {
-			for (let k = 0; k < allIndices.length; k++) {
-				const kIdx = allIndices[k]*totalColors;
+		for (let k = 0; k < allIndices.length; k++) {
+			const row = allIndices[k] * totalColors;
 
-				// start with distance from first color
-				let dist = distance[colorIndices[0] + kIdx];
+			// start with distance from first color
+			let minDistIdx = 0,
+				minDist = distance[colorIndices[minDistIdx] + row];
 
-				for (let l = 1; l < colorIndices.length; l++) {
-					let nDist = distance[colorIndices[l] + kIdx];
-					// keep track of smallest distance
-					// compared to previous colors
-					dist = nDist < dist ? nDist : dist;
+			for (let l = 1; l < colorIndices.length; l++) {
+				let nDistIdx = colorIndices[l],
+					nDist = distance[colorIndices[nDistIdx] + row];
+				// keep track of smallest distance
+				// compared to previous colors
+				if (nDist < minDist){
+					minDist = nDist;
+					minDistIdx = nDistIdx;
 				}
-
+			}
+			if (minDist > maxMinDist) {
+				maxMinDist = minDist;
+				maxMinDistIdx = k;
 			}
 		}
+		colorIndices.push(allIndices[maxMinDistIdx]);
+		timh_colors.push(hexColors[allIndices[maxMinDistIdx]]);
+
+		allIndices[maxMinDistIdx] = allIndices[allIndices.length - 1];
+		allIndices.pop();
 	}
+	
 	// add white in front of each color
-	colors = colors.map(arr => arr.unshift('#FFFFFF'));
+	timh_colors.unshift('#FFFFFF');
+	console.log(timh_colors);
+	return timh_colors;
 })();
