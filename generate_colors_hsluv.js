@@ -336,6 +336,43 @@ var colors = (function () {
 
 	};
 
+	var printColors = (() => {
+		let blockString = '████████████████████████████████████████';
+		return (colorArray) => {
+		  let colorCSS = [],
+			 colorString = [],
+			 index = colorArray.length;
+		  while (index--) {
+			 let hexColor = colorArray[index],
+				idx2 = colorArray.length - 1 - index;
+			 hex2 = colorArray[idx2];
+
+			 let idxString = index.toString(10),
+				idxString2 = idx2.toString(10);
+			 while (idxString.length < 3) {
+				idxString = '0' + idxString;
+			 }
+			 while (idxString2.length < 3) {
+				idxString2 = '0' + idxString2;
+			 }
+			 colorCSS.push(
+				'font-weight: bold;',
+				'color:' + hexColor + '; font-weight: bold;',
+				'font-weight: bold;',
+				'color:' + hex2 + '; font-weight: bold;',
+				'color:' + hexColor + '; font-weight: bold;',
+				'color:' + hex2 + '; font-weight: bold;'
+			 );
+			 colorString.push(
+				`
+	 %c${idxString}:%c${blockString}%c ${idxString2}:%c${blockString}
+	 %c    ${blockString}%c     ${blockString}`
+			 );
+		  }
+		  console.log(colorString.join(''), ...colorCSS);
+		};
+	 })();
+
 	/**
 	 *
 	 * Generate colors. Eyeballing, distinct ranges seem to be:
@@ -361,15 +398,15 @@ var colors = (function () {
 	 *     fewer categories
 	 *
 	 *   - for 44, 50 and 56 and 62 lightness, saturation steps
-	 *     40, 70 and 100 are required for distinction (3 options)
+	 *     40, 70 and 100 are available for distinction (3 options)
 	 *
 	 *   - 32 and 74 lightness, saturation should be either
 	 *     60 or 100 to avoid overly similar colors (2 options)
 
 	 *   - 20, 26, 80 and 86 lightness should only have 100 saturation
 	 *
-	 *  -  86 lightness has really low hue distinction, so let's use
-	 *     only two opposing ones: 90 and 270
+	 *  -  20 and 86 lightness have really low hue distinction, so let's use
+	 *     only two far opposing ones.
 	 *
 	 *   - improving distinction between close colors is most
 	 *     important. Since hues are cyclic, and we only care
@@ -387,16 +424,9 @@ var colors = (function () {
 
 	// include actual HSLuv values, and "normalised" values
 	// used later for picking colors that are the furthest apart
-	let hslTuples = [], normTuples = [];
-
-	// later on we need a starting color, a "seed"
-	// Let's take [90, 100, 90], it's bright yellow-ish.
-	// The furthest away color is [270, 100, 20],
-	// dark-blue/purplish
-	let seedColorIndex = 0,
-		seedH = 90,
-		seedS = 100,
-		seedL = 86;
+	let hslTuples = [],
+		normTuples = [],
+		hOffset = 12;
 
 	// Eleven lightness steps
 	for (let i = 0; i < 12; i++) {
@@ -421,7 +451,7 @@ var colors = (function () {
 						// hue-offset "checkerboard"
 						// dependent on lightness and
 						// saturation steps
-						h = k * 60 + ((i + j) & 1) * 30;
+						h = hOffset + k * 60 + ((i + j) & 1) * 30;
 
 						// save tuple
 						hslTuples.push([h, s, l]);
@@ -449,7 +479,7 @@ var colors = (function () {
 						// hue-offset "checkerboard"
 						// dependent on lightness and
 						// saturation steps
-						h = k * 60 + (i + j & 1) * 30;
+						h = hOffset + k * 60 + (i + j & 1) * 30;
 
 						// save tuple
 						hslTuples.push([h, s, l]);
@@ -464,7 +494,6 @@ var colors = (function () {
 					}
 				}
 				break;
-			case 20:
 			case 26:
 			case 80:
 				// no saturation loop, always 100
@@ -475,7 +504,7 @@ var colors = (function () {
 					// dependent on lightness and
 					// saturation steps
 
-					h = k * 60 + (i & 1) * 30;
+					h = hOffset + k * 60 + (i & 1) * 30;
 
 
 					// save tuple
@@ -489,13 +518,27 @@ var colors = (function () {
 					]);
 				}
 				break;
-			case 86:
-				hslTuples.push([90, 100, l]);
-				hslTuples.push([270, 100, l]);
+			case 20:
+				hslTuples.push([20, 100, l]);
+				hslTuples.push([260, 100, l]);
 				normTuples.push([0, 0, i]);
-				normTuples.push([3, 0, i]);
+				normTuples.push([4, 0, i]);
+				break;
+			case 86:
+				hslTuples.push([60, 100, l]);
+				hslTuples.push([240, 100, l]);
+				normTuples.push([1, 0, i]);
+				normTuples.push([4, 0, i]);
+				break;
 		}
 	}
+
+	// We need a starting color, a "seed"
+	// Let's take [60, 100, 86], it's bright yellow-ish.
+	let seedColorIndex = 0,
+		seedH = 60,
+		seedS = 100,
+		seedL = 86;
 
 	for (let i = 0; i < hslTuples.length; i++) {
 		// If we match the chosen seed-color,
@@ -512,7 +555,8 @@ var colors = (function () {
 	let hexColors = hslTuples.map(hsl => {
 		return Hsluv.hsluvToHex(hsl);
 	});
-	console.log(hexColors);
+	console.log("Hex colors: ", hexColors);
+	printColors(hexColors);
 
 	// actual color selection.
 	// Ideally: maximise the minimal color distance
@@ -541,8 +585,9 @@ var colors = (function () {
 
 	// perceived color distance is not weighed equally,
 	// even with the step sizes defined above.
-	// For all-else-equal values to me the following holds
-	// when I compare single-step changes:
+	// For me, contexts, the following holds true when
+	// I compare single-step changes in hue, saturation
+	// or lightness with the other three staying equal:
 	//
 	// - lightness has a bigger impact on perceptual changes,
 	//   and does not depend on colorvision
@@ -551,7 +596,7 @@ var colors = (function () {
 	//
 	// So we weigh l > s > h
 	// (I'll probably tweak this to see the effect on the output)
-	const lWeight = 4, sWeight = 1.25, hWeight = 1;
+	const lWeight = 1, sWeight = 1, hWeight = 1;
 
 
 	const { sqrt } = Math;
@@ -559,13 +604,13 @@ var colors = (function () {
 		for (let j = i + 1; j < totalColors; j++) {
 			const [hi, si, li] = normTuples[i];
 			const [hj, sj, lj] = normTuples[j];
-			// hue is cyclical
+			// hue is cyclical, and in range [0-6)
 			let dh = Math.min(Math.abs(hi - hj), 6 - Math.abs(hi - hj));
-			// will  be squared, no need to take absolute value
+			// will be squared, no need to take absolute value
 			let ds = si - sj;
 			let dl = li - lj;
 
-			dh *= lWeight;
+			dl *= lWeight;
 			ds *= sWeight;
 			dh *= hWeight;
 
@@ -616,8 +661,8 @@ var colors = (function () {
 	});
 	// add white in front of each color
 	timh_colors.unshift('#FFFFFF');
-	console.log(timh_colors);
-
+	console.log("Tim Holy-algorithm: ", timh_colors);
+	printColors(timh_colors);
 	// second approach: Bresenham-inspired accumulators.
 	// - take each dimention (hue, saturaion lightness), make
 	//   accumulator for each value in each dimension.
@@ -643,61 +688,62 @@ var colors = (function () {
 	let acc = {
 		// we round the half-steps for hue
 		h: [
-			0, //0 (  0 and  30)
-			100000, //1 ( 60 and  90)
-			0, //2 (120 and 150)
-			0, //3 (180 and 210)
-			200000, //4 (240 and 270)
-			0, //5 (300 and 330)
+			4000000000000000000, //0 (  0 and  30)
+			1000000000000000000, //1 ( 60 and  90)
+			5000000000000000000, //2 (120 and 150)
+			3000000000000000000, //3 (180 and 210)
+			6000000000000000000, //4 (240 and 270)
+			2000000000000000000, //5 (300 and 330)
 		],
 		s: [
-			0, //0 (100)
-			0, //1 (70 or 60)
-			100000, //2 (40)
+			2000000000, //0 (100)
+			0x0000000, //1 (70 or 60)
+			1000000000, //2 (40)
 		],
 		l: [
-			100000, //0  (86)
-			0, //1  (80)
-			0, //2  (74)
-			500000, //3  (68)
-			0, //4  (62)
-			20000, //5  (56)
-			0, //6  (50)
-			30000, //7  (44)
-			0, //8  (38)
-			10000, //9  (32)
-			0, //10 (26)
-			0, //11 (20)
+			2000000000000, //0  (86)
+			0x0000000000, //1  (80)
+			4000000000000, //2  (74)
+			0x0000000000, //3  (68)
+			1000000000000, //4  (62)
+			0x0000000000, //5  (56)
+			6000000000000, //6  (50)
+			0x0000000000, //7  (44)
+			3000000000000, //8  (38)
+			0x0000000000, //9  (32)
+			5000000000000, //10 (26)
+			0x0000000000, //11 (20)
 		],
 	};
 	let weight = {
-		h: [ // exhaust steps of three first,
+		h: [
+			// exhaust steps of three first,
 			// then move on to the next steps of three
-			2, //0 (  0 and  30)
-			7, //1 ( 60 and  90)
-			2, //2 (120 and 150)
-			7, //3 (180 and 210)
-			2, //4 (240 and 270)
-			7, //5 (300 and 330)
+			0x4001000 / 0x1000000,  // 0  (  0 and  30)
+			0x5001000 / 0x1000000,  // 1  ( 60 and  90)
+			0x4000001 / 0x1000000,  // 2  (120 and 150)
+			0x5000000 / 0x1000000,  // 3  (180 and 210)
+			0x4000000 / 0x1000000,  // 4  (240 and 270)
+			0x5000001 / 0x1000000,  // 5  (300 and 330)
 		],
 		s: [
-			15, //0 (100)
-			11, //1 (70 or 60)
-			7, //2 (40)
+			15000, //0 (100)
+			11000, //1 (70 or 60)
+			7000, //2 (40)
 		],
 		l: [
-			8,  //0   (86)
-			15,  //1   (80)
-			10,  //2   (74)
-			10, //3   (68)
-			15, //4   (62)
-			9,  //5   (56)
-			11,  //6   (50)
-			7,  //7   (44)
-			5,  //8   (38)
-			11,  //9   (32)
-			4,  //10  (26)
-			3,  //11  (20)
+			8000000,  //0   (86)
+			15000000,  //1   (80)
+			10000000,  //2   (74)
+			15000000,  //3   (68)
+			10000000,  //4   (62)
+			15000000,  //5   (56)
+			7000000,  //6   (50)
+			11000000,  //7   (44)
+			5000000,  //8   (38)
+			11000000,  //9   (32)
+			4000000,  //10  (26)
+			11000000,  //11  (20)
 		],
 	};
 
@@ -717,30 +763,32 @@ var colors = (function () {
 
 	// This is roughly O(n²/2), but it doesn't matter at this small scale
 	let remainingTuples = normTuples.slice(0),
-	adderColors = [],
-	adderIndices = []; // control
+		adderColors = [],
+		adderIndices = []; // control
 
 	while (adderColors.length < totalColors) {
 		addWeights();
 		// find color with highest score
 		let selectedIdx = 0,
 			selectedColor = remainingTuples[selectedIdx],
-			selectedScore = acc.h[(selectedColor[0] | 0)] +
+			selectedScore = acc.h[selectedColor[0] | 0] +
 				acc.s[selectedColor[1]] +
 				acc.l[selectedColor[2]];
 		for (let i = 1; i < remainingTuples.length; i++) {
-			let color = remainingTuples[i];
-			let score = acc.h[(color[0] | 0)] +
-				acc.s[color[1]] +
-				acc.l[color[2]];
-			if (score > selectedScore) {
+			let iColor = remainingTuples[i];
+			let iScore = acc.h[iColor[0] | 0] +
+				acc.s[iColor[1] | 0] +
+				acc.l[iColor[2] | 0];
+			if (iScore > selectedScore) {
 				selectedIdx = i;
-				selectedColor = color;
-				selectedScore = score;
+				selectedColor = iColor;
+				selectedScore = iScore;
 			}
 		}
 
+		// Save index to test later if every color is unique
 		adderIndices.push(normTuples.indexOf(selectedColor) | 0);
+
 		// set accumulator for winning values to zero,
 		// as well as all nearby values, to make next
 		// selected color something more distant
@@ -752,10 +800,10 @@ var colors = (function () {
 		acc.l[selectedL] = 0;
 		// also remove neighbouring hue and lightness, to encourage
 		// bigger contrast for neighbouring colors
-		acc.h[(selectedH + acc.h.length - 1) % acc.h.length] = 0;
-		acc.h[(selectedH + acc.h.length + 1) % acc.h.length] = 0;
+		//acc.h[(selectedH + acc.h.length - 1) % acc.h.length] = 0;
+		//acc.h[(selectedH + acc.h.length + 1) % acc.h.length] = 0;
 		acc.l[Math.max(0, selectedL - 1)] = 0;
-		//acc.l[Math.min(selectedL + 1, acc.l.length - 1)] = 0;
+		acc.l[Math.min(selectedL + 1, acc.l.length - 1)] = 0;
 
 		// add selected color to selected color array
 		adderColors.push(selectedColor);
@@ -764,8 +812,13 @@ var colors = (function () {
 		remainingTuples[selectedIdx] = remainingTuples[remainingTuples.length - 1]
 		remainingTuples.pop();
 	}
+	// Test if all colors are unique
 	adderIndices.sort((i, j) => i - j);
-	console.log(adderIndices);
+	for (let i = 1; i < adderIndices.length; i++) {
+		if (adderIndices[i] - adderIndices[i - 1] !== 1) {
+			console.log("Not all values are unique! ", adderIndices);
+		}
+	}
 
 	let adderHexColors = adderColors.map(normVal => {
 		let idx = normTuples.indexOf(normVal) | 0;
@@ -773,6 +826,7 @@ var colors = (function () {
 	});
 
 	adderHexColors.unshift('#ffffff');
-	console.log(adderHexColors);
+	console.log('Accumulator Algorithm: ', adderHexColors);
+	printColors(adderHexColors);
 	return adderHexColors;
 })();
